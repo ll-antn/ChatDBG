@@ -1,5 +1,5 @@
 # A Dockerfile to make development setup easier. Run with:
-# docker run -it --rm -e OPENAI_API_KEY=$OPENAI_API_KEY $(docker build -q .)
+# docker run -it --rm -e DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY $(docker build -q .)
 
 FROM ubuntu
 

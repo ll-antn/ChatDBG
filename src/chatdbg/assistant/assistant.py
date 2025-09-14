@@ -10,7 +10,7 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     import litellm
 
-import openai
+# import openai  # Removed OpenAI dependency, using litellm for DeepSeek
 
 from ..util.trim import sandwich_tokens, trim_messages
 from ..util.text import strip_ansi
@@ -32,7 +32,7 @@ class Assistant:
     def __init__(
         self,
         instructions,
-        model="gpt-4o",
+        model="deepseek/deepseek-chat",
         timeout=30,
         listeners=[Printer()],
         functions=[],
@@ -94,14 +94,15 @@ class Assistant:
             stats["model"] = self._model
             stats["completed"] = True
             stats["message"] = f"\n[Cost: ~${stats['cost']:.2f} USD]"
-        except openai.OpenAIError as e:
-            self._warn_about_exception(e, f"Unexpected OpenAI Error.  Retry the query.")
-            stats["message"] = f"[Exception: {e}]"
         except KeyboardInterrupt:
             # user action -- just ignore
             stats["message"] = "[Chat Interrupted]"
         except Exception as e:
-            self._warn_about_exception(e, f"Unexpected Exception.")
+            # Handle DeepSeek API errors through litellm
+            if "deepseek" in str(e).lower() or "api" in str(e).lower():
+                self._warn_about_exception(e, f"Unexpected DeepSeek API Error.  Retry the query.")
+            else:
+                self._warn_about_exception(e, f"Unexpected Exception.")
             stats["message"] = f"[Exception: {e}]"
 
         self._broadcast("on_end_query", stats)
@@ -124,7 +125,16 @@ class Assistant:
         missing_keys = result["missing_keys"]
         if missing_keys != []:
             _, provider, _, _ = litellm.get_llm_provider(self._model)
-            if provider == "openai":
+            if provider == "deepseek":
+                raise AssistantError(
+                    textwrap.dedent(
+                        f"""\
+                    You need a DeepSeek API key to use the {self._model} model.
+                    You can get a key here: https://platform.deepseek.com/api-keys.
+                    Set the environment variable DEEPSEEK_API_KEY to your key value."""
+                    )
+                )
+            elif provider == "openai":
                 raise AssistantError(
                     textwrap.dedent(
                         f"""\
@@ -148,7 +158,7 @@ class Assistant:
                     textwrap.dedent(
                         f"""\
                     The {self._model} model does not support function calls.
-                    You must use a model that does, eg. gpt-4."""
+                    You must use a model that does, eg. deepseek-chat or gpt-4."""
                     )
                 )
         except:
